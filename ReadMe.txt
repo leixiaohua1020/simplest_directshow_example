@@ -11,7 +11,7 @@ http://blog.csdn.net/leixiaohua1020
 它包含了以下几个子程序：
 simplest_directshow_player: 最简单的基于DirectShow的视频播放器。
 simplest_directshow_player_custom: 最简单的基于DirectShow的视频播放器（Custom）。
-Simplest DirectShow Player GUI: 最简单的基于DirectShow的播放器-图形界面版。
+playerGUI: 最简单的基于DirectShow的播放器-图形界面版。
 simplest_directshow_info: 最简单的Directshow信息显示例子。
 simplest_directshow_filter: 目前还未完成。
 
@@ -20,6 +20,6 @@ Suitable for the beginner of DirectShow.
 It contains following projects:
 simplest_directshow_player: Simplest DirectShow Player.
 simplest_directshow_player_custom: Simplest DirectShow Player (Custom).
-Simplest DirectShow Player GUI: Simplest DirectShow Player GUI.
+playerGUI: Simplest DirectShow Player GUI.
 simplest_directshow_info: Simplest DirectShow Info.
 simplest_directshow_filter: Unfinished yet.

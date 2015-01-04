@@ -19,18 +19,24 @@
 #include <dshow.h>
 #include <atlconv.h>
 
+#define OUTPUT_PIN       1
+#define OUTPUT_MEDIATYPE 1
+
+
 char* GuidToString(const GUID &guid)
 {
-	char buf[64] = {0};
-	_snprintf_s(
+	int buf_len=64;
+	char *buf =(char *)malloc(buf_len);
+	_snprintf(
 		buf,
-		sizeof(buf),
+		buf_len,
 		"{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}",
 		guid.Data1, guid.Data2, guid.Data3,
 		guid.Data4[0], guid.Data4[1],
 		guid.Data4[2], guid.Data4[3],
 		guid.Data4[4], guid.Data4[5],
 		guid.Data4[6], guid.Data4[7]);
+	//printf("%s\n",buf);
 	return buf;
 }
 
@@ -45,7 +51,7 @@ int _tmain(int argc, _TCHAR* argv[])
 		printf("Error, Can not init COM.");
 		return -1;
 	}
-	printf("Directshow Filters ===============\n");
+	printf("===============Directshow Filters ===============\n");
 	ICreateDevEnum *pSysDevEnum = NULL;
 	hr = CoCreateInstance(CLSID_SystemDeviceEnum, NULL, CLSCTX_INPROC_SERVER,
 		IID_ICreateDevEnum, (void **)&pSysDevEnum);
@@ -55,12 +61,33 @@ int _tmain(int argc, _TCHAR* argv[])
 
 	IEnumMoniker *pEnumCat = NULL;
 	//Category	
+	/************************************************************************
+	Friendly Name	                      CLSID
+	-------------------------------------------------------------------------
+	Audio Capture Sources	              CLSID_AudioInputDeviceCategory
+	Audio Compressors	                  CLSID_AudioCompressorCategory
+	Audio Renderers	                      CLSID_AudioRendererCategory
+	Device Control Filters	              CLSID_DeviceControlCategory
+	DirectShow Filters	                  CLSID_LegacyAmFilterCategory
+	External Renderers	                  CLSID_TransmitCategory
+	Midi Renderers	                      CLSID_MidiRendererCategory
+	Video Capture Sources	              CLSID_VideoInputDeviceCategory
+	Video Compressors	                  CLSID_VideoCompressorCategory
+	WDM Stream Decompression Devices	  CLSID_DVDHWDecodersCategory
+	WDM Streaming Capture Devices	      AM_KSCATEGORY_CAPTURE
+	WDM Streaming Crossbar Devices	      AM_KSCATEGORY_CROSSBAR
+	WDM Streaming Rendering Devices	      AM_KSCATEGORY_RENDER
+	WDM Streaming Tee/Splitter Devices	  AM_KSCATEGORY_SPLITTER
+	WDM Streaming TV Audio Devices	      AM_KSCATEGORY_TVAUDIO
+	WDM Streaming TV Tuner Devices	      AM_KSCATEGORY_TVTUNER
+	WDM Streaming VBI Codecs	          AM_KSCATEGORY_VBICODEC 
+	************************************************************************/
 	hr = pSysDevEnum->CreateClassEnumerator(CLSID_VideoCompressorCategory, &pEnumCat, 0);
 	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_VideoInputDeviceCategory, &pEnumCat, 0);
-	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_MidiRendererCategory, &pEnumCat, 0);
 	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_AudioCompressorCategory, &pEnumCat, 0);
 	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_AudioInputDeviceCategory, &pEnumCat, 0);
-	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_AudioRendererCategory, &pEnumCat, 0);
+	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_MediaMultiplexerCategory, &pEnumCat, 0);
+	//hr = pSysDevEnum->CreateClassEnumerator(CLSID_LegacyAmFilterCategory, &pEnumCat, 0);
 
 	if (hr != S_OK) {
 		pSysDevEnum->Release();
@@ -68,109 +95,115 @@ int _tmain(int argc, _TCHAR* argv[])
 	}
 	
 	IMoniker *pMoniker = NULL;
-	ULONG cFetched;
+	ULONG monikerFetched;
 	//Filter
-	while(pEnumCat->Next(1, &pMoniker, &cFetched) == S_OK){
+	while(pEnumCat->Next(1, &pMoniker, &monikerFetched) == S_OK){
 		IPropertyBag *pPropBag;
+		VARIANT varName;
+		IBaseFilter *pFilter;
 		hr = pMoniker->BindToStorage(0, 0, IID_IPropertyBag,(void **)&pPropBag);
 		if (FAILED(hr)){
 			pMoniker->Release();
 			continue;
 		}
-		VARIANT varName;
 		VariantInit(&varName);
 		hr = pPropBag->Read(L"FriendlyName", &varName, 0);
 		//"FriendlyName": The name of the device.
 		//"Description": A description of the device.
-		//"DevicePath": A unique string that identifies the device. (Video capture devices only.)
-		//"WaveInID": The identifier for an audio capture device. (Audio capture devices only.)
 		//Filter Info================
-		printf("%s\n",W2A(varName.bstrVal));
+		printf("[%s]\n",W2A(varName.bstrVal));
 		VariantClear(&varName);
 		//========================
-		IBaseFilter *pFilter;
+#if OUTPUT_PIN
 		hr = pMoniker->BindToObject(NULL, NULL, IID_IBaseFilter,(void**)&pFilter);
 		if (!pFilter){
 			continue;
 		}
+
 		IEnumPins * pinEnum = NULL;
+		IPin * pin = NULL;
+		ULONG pinFetched = 0;
 		if (FAILED(pFilter->EnumPins(&pinEnum))){
 			pinEnum->Release();
 			continue;	
 		}
 		pinEnum->Reset();
-		IPin * pin = NULL;
-		ULONG fetchCount = 0;
 		//Pin Info
-		while (SUCCEEDED(pinEnum->Next(1, &pin, &fetchCount)) && fetchCount){
+		while (SUCCEEDED(pinEnum->Next(1, &pin, &pinFetched)) && pinFetched){
 			if (!pin){
 				continue;
 			}
-			PIN_INFO PinInfo;
-			if (FAILED(pin->QueryPinInfo(&PinInfo))){
+			PIN_INFO pinInfo;
+			if (FAILED(pin->QueryPinInfo(&pinInfo))){
 				continue;
 			}
-			printf("\tPin:");
-				switch(PinInfo.dir){
-				case PINDIR_INPUT:printf("Input\t");break;
-				case PINDIR_OUTPUT:printf("Output\t");break;
-				default:printf("Unknown\n");break;
+			printf("\t[Pin] ");
+				switch(pinInfo.dir){
+				case PINDIR_INPUT:printf("Dir:Input  \t");break;
+				case PINDIR_OUTPUT:printf("Dir:Output \t");break;
+				default:printf("Dir:Unknown\n");break;
 			}
-			printf("%s\n",W2A(PinInfo.achName));
+			printf("Name:%s\n",W2A(pinInfo.achName));
 					
 			//MediaType
-			/*
-			IEnumMediaTypes **ppEnum=NULL;
-			AM_MEDIA_TYPE   **ppType=NULL;
-			if( FAILED( pin->EnumMediaTypes( ppEnum )) )
+#if OUTPUT_MEDIATYPE
+			IEnumMediaTypes *mtEnum=NULL;
+			AM_MEDIA_TYPE   *mt=NULL;
+			if( FAILED( pin->EnumMediaTypes( &mtEnum )) )
 				break;
-			(*ppEnum)->Reset();
+			mtEnum->Reset();
+			
+			ULONG mtFetched = 0;
 
-			ULONG uFetched = 0;
-			if( FAILED( (*ppEnum)->Next( 1, ppType, &uFetched )) )
-				break;
-			printf("\t\tMediaType:");
-			for(int i=0;i<uFetched;i++){
+			while (SUCCEEDED(mtEnum->Next(1, &mt, &mtFetched)) && mtFetched){
+
+				printf("\t\t[MediaType]\n");
 				//Video
 				char *MEDIATYPE_Video_str=GuidToString(MEDIATYPE_Video);
-				//Video Subtype Example
-				//Bitstream:
-				//MEDIASUBTYPE_H264
-				//Uncompressed
-				//MEDIASUBTYPE_YUY2
-				//MEDIASUBTYPE_UYVY
 				//Audio
 				char *MEDIATYPE_Audio_str=GuidToString(MEDIATYPE_Audio);
-				//Audio Subtype Example
-				//Bitstream:
-				//MEDIASUBTYPE_PCM
-				//Uncompressed
-				//MEDIASUBTYPE_MPEG_HEAAC
-				//MEDIASUBTYPE_DOLBY_AC3
-				char *majortype_str=GuidToString(ppType[i]->majortype);
-								
+				//Stream
+				char *MEDIATYPE_Stream_str=GuidToString(MEDIATYPE_Stream);
+				//Majortype
+				char *majortype_str=GuidToString(mt->majortype);
+				//Subtype
+				char *subtype_str=GuidToString(mt->subtype);
+
+				printf("\t\t  Majortype:");
 				if(strcmp(majortype_str,MEDIATYPE_Video_str)==0){
 					printf("Video\n");
 				}else if(strcmp(majortype_str,MEDIATYPE_Audio_str)==0){
 					printf("Audio\n");
+				}else if(strcmp(majortype_str,MEDIATYPE_Stream_str)==0){
+					printf("Stream\n");
 				}else{
 					printf("Other\n");
 				}
+				printf("\t\t  Subtype GUID:%s",subtype_str);
+
+				free(MEDIATYPE_Video_str);
+				free(MEDIATYPE_Audio_str);
+				free(MEDIATYPE_Stream_str);
+				free(subtype_str);
+				free(majortype_str);
+				printf("\n");
+
 			}
-			*/
-			//=================
+#endif
 			pin->Release();
 				
 		}
 		pinEnum->Release();
+
+		pFilter->Release();
+#endif
 		
-		//
 		pPropBag->Release();
 		pMoniker->Release();
 	}
 	pEnumCat->Release();
 	pSysDevEnum->Release();
-	printf("==================================\n");
+	printf("=================================================\n");
 	CoUninitialize();
 }
 

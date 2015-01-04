@@ -156,7 +156,6 @@ BOOL CplayerGUIDlg::OnInitDialog()
 	}
 
 
-
 	return TRUE;  // 除非将焦点设置到控件，否则返回 TRUE
 }
 
@@ -252,8 +251,8 @@ void CplayerGUIDlg::OnBnClickedStart()
 	pWindow->put_MessageDrain((OAHWND) screen_hwnd);//Receive Message
 	pWindow->put_Visible(OATRUE);
 
-
 	pEvent->SetNotifyWindow((OAHWND)screen_hwnd, WM_GRAPHNOTIFY, 0);
+
 	// Run
 	hr = pControl->Run();
 

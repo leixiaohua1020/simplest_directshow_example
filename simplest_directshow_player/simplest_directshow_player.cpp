@@ -137,8 +137,6 @@ int _tmain(int argc, _TCHAR* argv[])
 			long evCode=0;
 			//pEvent->WaitForCompletion(INFINITE, &evCode);
 			while(evCode!=EC_COMPLETE){
-				//1000ms
-				pEvent->WaitForCompletion(1000, &evCode);
 				//Info
 #if OUTPUT_INFO
 				pSeeking->GetCurrentPosition(&position_1);
@@ -146,6 +144,8 @@ int _tmain(int argc, _TCHAR* argv[])
 				progress=position_sec*100/duration_sec;
 				printf("%7.2fs\t%5.2f%%\n",position_sec,progress);
 #endif
+				//1000ms
+				pEvent->WaitForCompletion(1000, &evCode);
 			}
         }
     }
