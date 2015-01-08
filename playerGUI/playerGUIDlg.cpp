@@ -251,7 +251,9 @@ void CplayerGUIDlg::OnBnClickedStart()
 	pWindow->put_MessageDrain((OAHWND) screen_hwnd);//Receive Message
 	pWindow->put_Visible(OATRUE);
 
-	pEvent->SetNotifyWindow((OAHWND)screen_hwnd, WM_GRAPHNOTIFY, 0);
+	HWND dlg_hwnd=NULL;
+	dlg_hwnd = this->GetSafeHwnd(); 
+	pEvent->SetNotifyWindow((OAHWND)dlg_hwnd, WM_GRAPHNOTIFY, 0);
 
 	// Run
 	hr = pControl->Run();
@@ -435,54 +437,56 @@ void CplayerGUIDlg::OnDestroy()
 
 void CplayerGUIDlg::OnTimer(UINT_PTR nIDEvent)
 {
-	CString curtimestr,durationstr;
-	long long curtime;
-	long long duration;
-	int tns, thh, tmm, tss;
-	int progress;
-	//ms
-	pSeeking->GetCurrentPosition(&curtime);
-	if(curtime!=0){
-		//change to second
-		tns = curtime/10000000;
-		thh  = tns / 3600;
-		tmm  = (tns % 3600) / 60;
-		tss  = (tns % 60);
-		curtimestr.Format(_T("%02d:%02d:%02d"),thh,tmm,tss);
-		m_curtime.SetWindowText(curtimestr);
-	}
-	pSeeking->GetDuration(&duration);
-	if(duration!=0){
-		tns = duration/10000000;
-		thh  = tns / 3600;
-		tmm  = (tns % 3600) / 60;
-		tss  = (tns % 60);
-		durationstr.Format(_T("%02d:%02d:%02d"),thh,tmm,tss);
-		m_duration.SetWindowText(durationstr);
+	if (nIDEvent == 1){
+		CString curtimestr,durationstr;
+		long long curtime;
+		long long duration;
+		int tns, thh, tmm, tss;
+		int progress;
+		//ms
+		pSeeking->GetCurrentPosition(&curtime);
+		if(curtime!=0){
+			//change to second
+			tns = curtime/10000000;
+			thh  = tns / 3600;
+			tmm  = (tns % 3600) / 60;
+			tss  = (tns % 60);
+			curtimestr.Format(_T("%02d:%02d:%02d"),thh,tmm,tss);
+			m_curtime.SetWindowText(curtimestr);
+		}
+		pSeeking->GetDuration(&duration);
+		if(duration!=0){
+			tns = duration/10000000;
+			thh  = tns / 3600;
+			tmm  = (tns % 3600) / 60;
+			tss  = (tns % 60);
+			durationstr.Format(_T("%02d:%02d:%02d"),thh,tmm,tss);
+			m_duration.SetWindowText(durationstr);
 
-		progress=curtime*100/duration;
-		m_progress.SetPos(progress);
+			progress=curtime*100/duration;
+			m_progress.SetPos(progress);
+		}
 	}
-
 	CDialogEx::OnTimer(nIDEvent);
 }
 
 
 void CplayerGUIDlg::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar* pScrollBar)
 {
-	float pos_bar=0.0;
-	long long duration=0.0;
-	long long pos_time=0.0;
-	if(nSBCode==SB_THUMBPOSITION){
-		pos_bar=(float)nPos/100.0;
-		pSeeking->GetDuration(&duration);
-		pos_time=pos_bar*duration;
+	if (pScrollBar->GetSafeHwnd() == m_progress.GetSafeHwnd()){
+		float pos_bar=0.0;
+		long long duration=0.0;
+		long long pos_time=0.0;
+		if(nSBCode==SB_THUMBPOSITION){
+			pos_bar=(float)nPos/100.0;
+			pSeeking->GetDuration(&duration);
+			pos_time=pos_bar*duration;
 
-		long long position = (long long)(pos_time);
-		HRESULT hr = pSeeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning | AM_SEEKING_SeekToKeyFrame, 
-			0, AM_SEEKING_NoPositioning);
+			long long position = (long long)(pos_time);
+			HRESULT hr = pSeeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning | AM_SEEKING_SeekToKeyFrame, 
+				0, AM_SEEKING_NoPositioning);
+		}
 	}
-
 	CDialogEx::OnHScroll(nSBCode, nPos, pScrollBar);
 }
 
@@ -568,10 +572,7 @@ LRESULT CplayerGUIDlg::OnGraphNotify(WPARAM inWParam, LPARAM inLParam)
 		switch (eventCode)
 		{
 		case EC_COMPLETE:{
-			OnBnClickedPause();
-			long long position = 0;
-			HRESULT hr = pSeeking->SetPositions(&position, AM_SEEKING_AbsolutePositioning | AM_SEEKING_SeekToKeyFrame, 
-				0, AM_SEEKING_NoPositioning);
+			OnBnClickedStop();
 			break;
 			}
 		case EC_USERABORT:

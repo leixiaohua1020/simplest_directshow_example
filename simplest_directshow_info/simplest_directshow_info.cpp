@@ -205,5 +205,6 @@ int _tmain(int argc, _TCHAR* argv[])
 	pSysDevEnum->Release();
 	printf("=================================================\n");
 	CoUninitialize();
+	return 0;
 }
 
